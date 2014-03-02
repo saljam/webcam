@@ -8,20 +8,24 @@
 <script src=https://apprtc.appspot.com/js/adapter.js></script>
 <script>
 function error(err) {
-	console.log("foo:", err)
+	console.log(err.message)
 }
 
 (function () {
-	var constraints = {video: false, audio: false}
-	var ws = new WebSocket('ws://' + location.host + '/call')
+	var constraints = {video: true, audio: false}
+	var ws = new WebSocket('ws://' + location.host + '/answer')
 	var cfg = {"iceServers": [{"url": "stun:stun.l.google.com:19302"}]};
-	pc = new RTCPeerConnection(cfg, {optional: [{RtpDataChannels: true}]});
+	var pc = new RTCPeerConnection(cfg);
 	
 	ws.onmessage = function(m) {
 		var msg = JSON.parse(m.data);
-		if (msg.type === 'answer') {
-			console.log("got answer", msg)
+		if (msg.type === 'offer') {
+			console.log("got offer", msg)
 			pc.setRemoteDescription(new RTCSessionDescription(msg), function(){}, error);
+			pc.createAnswer(function(desc) {
+				pc.setLocalDescription(desc);
+				ws.send(JSON.stringify(desc));
+			});
 		} else if (msg.type === 'candidate') {
 			console.log("got candidate", msg)
 			var candidate = new RTCIceCandidate({
@@ -51,22 +55,15 @@ function error(err) {
 	};
 	pc.onaddstream = function (ev) {
 		console.log("addStream!", ev)
-		var vid = document.getElementById("cam");
-		attachMediaStream(vid, ev.stream);
 	};
 	
-	ws.onopen = function (ev) {
-		getUserMedia(constraints, function (stream){
-			console.log("adding stream", stream)
-			pc.addStream(stream);
-			pc.createOffer(function(desc) {
-				pc.setLocalDescription(desc);
-				ws.send(JSON.stringify(desc));
-			});
-		}, error);
-	};
+	getUserMedia(constraints, function (stream){
+		console.log("adding stream", stream)
+		pc.addStream(stream);
+	}, error);
+
 })();
 </script>
-<title>webcam</title>
+<title>cam</title>
 <body>
-<video id=cam autoplay>
+<h1>Smile!
