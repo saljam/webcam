@@ -26,12 +26,12 @@ function error(err) {
 				pc.setLocalDescription(desc);
 				ws.send(JSON.stringify(desc));
 			});
+		} else if (msg.type === 'answer') {
+			console.log("got answer", msg)
+			pc.setRemoteDescription(new RTCSessionDescription(msg), function(){}, error);
 		} else if (msg.type === 'candidate') {
 			console.log("got candidate", msg)
-			var candidate = new RTCIceCandidate({
-				sdpMLineIndex:msg.label,
-				candidate:msg.candidate});
-			pc.addIceCandidate(candidate);
+			pc.addIceCandidate(new RTCIceCandidate(msg));
 		} else {
 			console.log("what's this?", msg)
 		}
@@ -39,31 +39,34 @@ function error(err) {
 	
 	pc.onicecandidate = function(e) {
 		if (e.candidate) {
+			e.candidate.type="candidate";
 			console.log("sending candidate", e.candidate)
-			ws.send(JSON.stringify({
-				type: "candidate",
-				label: event.candidate.sdpMLineIndex,
-				id: event.candidate.sdpMid,
-				candidate: event.candidate.candidate}));
+			ws.send(JSON.stringify(e.candidate));
 		}
 	}
-	pc.onconnecting = function (ev) {
-		console.log("connecting...", ev)
+	pc.onconnecting = function (e) {
+		console.log("connecting...", e)
 	};
-	pc.onopen = function (ev) {
-		console.log("open!", ev)
+	pc.onopen = function (e) {
+		console.log("open!", e)
 	};
-	pc.onaddstream = function (ev) {
-		console.log("addStream!", ev)
+	pc.onaddstream = function (e) {
+		console.log("addStream!", e)
 	};
 	
-	getUserMedia(constraints, function (stream){
-		console.log("adding stream", stream)
-		pc.addStream(stream);
-	}, error);
-
+	ws.onopen = function (ev) {
+		getUserMedia(constraints, function (stream){
+			console.log("adding stream", stream)
+			pc.addStream(stream);
+			pc.createOffer(function(desc) {
+				pc.setLocalDescription(desc);
+				ws.send(JSON.stringify(desc));
+			});
+		}, error);
+	};
 })();
 </script>
+
 <title>cam</title>
 <body>
 <h1>Smile!
