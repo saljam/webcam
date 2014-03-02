@@ -12,51 +12,23 @@ function error(err) {
 }
 
 (function () {
-	var constraints = {video: true, audio: false}
 	var ws = new WebSocket('ws://' + location.host + '/answer')
 	var cfg = {"iceServers": [{"url": "stun:stun.l.google.com:19302"}]};
 	var pc = new RTCPeerConnection(cfg);
 	
 	ws.onmessage = function(m) {
 		var msg = JSON.parse(m.data);
-		if (msg.type === 'offer') {
-			console.log("got offer", msg)
-			pc.setRemoteDescription(new RTCSessionDescription(msg), function(){}, error);
-			pc.createAnswer(function(desc) {
-				pc.setLocalDescription(desc);
-				ws.send(JSON.stringify(desc));
-			});
-		} else if (msg.type === 'answer') {
-			console.log("got answer", msg)
+		if (msg.type === 'answer') {
 			pc.setRemoteDescription(new RTCSessionDescription(msg), function(){}, error);
 		} else if (msg.type === 'candidate') {
-			console.log("got candidate", msg)
 			pc.addIceCandidate(new RTCIceCandidate(msg));
 		} else {
 			console.log("what's this?", msg)
 		}
 	}
 	
-	pc.onicecandidate = function(e) {
-		if (e.candidate) {
-			e.candidate.type="candidate";
-			console.log("sending candidate", e.candidate)
-			ws.send(JSON.stringify(e.candidate));
-		}
-	}
-	pc.onconnecting = function (e) {
-		console.log("connecting...", e)
-	};
-	pc.onopen = function (e) {
-		console.log("open!", e)
-	};
-	pc.onaddstream = function (e) {
-		console.log("addStream!", e)
-	};
-	
 	ws.onopen = function (ev) {
-		getUserMedia(constraints, function (stream){
-			console.log("adding stream", stream)
+		getUserMedia({video: true, audio: false}, function (stream){
 			pc.addStream(stream);
 			pc.createOffer(function(desc) {
 				pc.setLocalDescription(desc);
@@ -64,6 +36,14 @@ function error(err) {
 			});
 		}, error);
 	};
+	
+	pc.onicecandidate = function(e) {
+		if (e.candidate) {
+			e.candidate.type="candidate";
+			ws.send(JSON.stringify(e.candidate));
+		}
+	}
+	
 })();
 </script>
 

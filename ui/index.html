@@ -12,7 +12,6 @@ function error(err) {
 }
 
 (function () {
-	var constraints = {video: true, audio: false}
 	var ws = new WebSocket('ws://' + location.host + '/call')
 	var cfg = {"iceServers": [{"url": "stun:stun.l.google.com:19302"}]};
 	pc = new RTCPeerConnection(cfg, {optional: [{RtpDataChannels: true}]});
@@ -20,17 +19,12 @@ function error(err) {
 	ws.onmessage = function(m) {
 		var msg = JSON.parse(m.data);
 		if (msg.type === 'offer') {
-			console.log("got offer", msg)
 			pc.setRemoteDescription(new RTCSessionDescription(msg), function(){}, error);
 			pc.createAnswer(function(desc) {
 				pc.setLocalDescription(desc);
 				ws.send(JSON.stringify(desc));
 			});
-		} else if (msg.type === 'answer') {
-			console.log("got answer", msg)
-			pc.setRemoteDescription(new RTCSessionDescription(msg), function(){}, error);
 		} else if (msg.type === 'candidate') {
-			console.log("got candidate", msg)
 			pc.addIceCandidate(new RTCIceCandidate(msg));
 		} else {
 			console.log("what's this?", msg)
@@ -40,18 +34,10 @@ function error(err) {
 	pc.onicecandidate = function(e) {
 		if (e.candidate) {
 			e.candidate.type="candidate";
-			console.log("sending candidate", e.candidate)
 			ws.send(JSON.stringify(e.candidate));
 		}
 	}
-	pc.onconnecting = function (e) {
-		console.log("connecting...", e)
-	};
-	pc.onopen = function (e) {
-		console.log("open!", e)
-	};
 	pc.onaddstream = function (e) {
-		console.log("addStream!", e)
 		var vid = document.getElementById("cam");
 		attachMediaStream(vid, e.stream);
 	};
