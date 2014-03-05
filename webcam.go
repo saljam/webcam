@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	addr     = flag.String("addr", ":8888", "http address to listen on")
+	addr     = flag.String("addr", ":8003", "http address to listen on")
 	dataRoot = flag.String("data", "./ui", "data dir")
 
 	c, a *websocket.Conn
