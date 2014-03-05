@@ -5,7 +5,7 @@
 <meta name=viewport content="width=device-width, height=device-height, user-scalable=no">
 
 <link rel=stylesheet href=style.css>
-<script src=https://apprtc.appspot.com/js/adapter.js></script>
+<script src=adapter.js></script>
 <script>
 function error(err) {
 	console.log("foo:", err)
@@ -23,7 +23,7 @@ function error(err) {
 			pc.createAnswer(function(desc) {
 				pc.setLocalDescription(desc);
 				ws.send(JSON.stringify(desc));
-			});
+			}, error);
 		} else if (msg.type === 'candidate') {
 			pc.addIceCandidate(new RTCIceCandidate(msg));
 		} else {
