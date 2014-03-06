@@ -47,6 +47,7 @@ void Conductor::Offer() {
 	if (pc.get() == NULL) {
 		Debug("CreatePeerConnection failed");
 		Close();
+		return;
 	}
 	AddStreams();
 	pc->CreateOffer(this, NULL);
@@ -118,7 +119,6 @@ void Conductor::AddStreams() {
 // PeerConnectionObserver implementation.
 
 void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
-	Debug("got ice");
 	std::string mid = candidate->sdp_mid();
 	int line = candidate->sdp_mline_index();
 	std::string sdp;
@@ -150,7 +150,7 @@ void init() {
 	
 	Debug("Initializing PeerConnectionFactory");
 	peerConnectionFactory  = webrtc::CreatePeerConnectionFactory();
-	if (!peerConnectionFactory.get()) {
+	if (peerConnectionFactory.get() == NULL) {
 		Debug("Failed to initialize PeerConnectionFactory");
 		return;
 	}

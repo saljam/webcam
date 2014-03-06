@@ -43,12 +43,14 @@ func readMsgs(r io.Reader, pc PeerConn) {
 
 		switch msg["type"] {
 		case "candidate":
+			log.Println("got candidate")
 			pc.AddCandidate(
 				msg["candidate"].(string),
 				msg["sdpMid"].(string),
 				int(msg["sdpMLineIndex"].(float64)),
 			)
 		case "answer":
+			log.Println("got answer")
 			pc.AddAnswer(msg["sdp"].(string))
 		default:
 			log.Println("got unknow json message:", msg)
@@ -67,6 +69,7 @@ func call(ws *websocket.Conn) {
 	for {
 		select {
 		case c := <-pc.Candidate:
+			log.Println("sending candidate")
 			c.Type = "candidate"
 			enc.Encode(c)
 		case sdp := <-pc.Offer:
