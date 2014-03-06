@@ -1,3 +1,8 @@
-# Webcam
-
 Web Browser ← Camera
+
+To build this you'll first need to checkout and build the WebRTC native libraries into
+the directory webrtc. (Or bind/symlink/etc. that to where it is.)
+
+http://www.webrtc.org/reference/getting-started can guide you through that.
+
+Once that's done go install should work as expected to produce the webcam binary.
