@@ -8,7 +8,7 @@
 <script src=adapter.js></script>
 <script>
 function error(err) {
-	console.log("foo:", err)
+	console.log("err:", err)
 }
 
 (function () {
@@ -34,6 +34,7 @@ function error(err) {
 	pc.onicecandidate = function(e) {
 		if (e.candidate) {
 			e.candidate.type="candidate";
+			console.log(e.candidate);
 			ws.send(JSON.stringify(e.candidate));
 		}
 	}
