@@ -15,120 +15,63 @@ extern "C" {
 #include "peerconn.h"
 }
 
-class SetSDHandler :
+class SetSDPHandler :
 public webrtc::SetSessionDescriptionObserver {
 public:
-	static SetSDHandler* Create() {
-		return new talk_base::RefCountedObject<SetSDHandler>();
+	static SetSDPHandler* Create() {
+		return new talk_base::RefCountedObject<SetSDPHandler>();
 	}
-	virtual void OnSuccess();
-	virtual void OnFailure(const std::string& error);
-
-protected:
-	SetSDHandler() {}
-	~SetSDHandler() {}
-};
-
-void SetSDHandler::OnSuccess() {
-		Debug("SetSDHandler succeeded");
-}
-
-void SetSDHandler::OnFailure(const std::string& error) {
-		Debug("SetSDHandler failed");
+	virtual void OnSuccess() {
+		Debug("SetSDPHandler succeeded");
+	}
+	virtual void OnFailure(const std::string& error) {
+		Debug("SetSDPHandler failed");
 		Debug((char*)error.c_str());
-}
+	}
+protected:
+	SetSDPHandler() {}
+	~SetSDPHandler() {}
+};
 
 bool Conductor::connection_active() const {
 	return peer_connection_.get() != NULL;
 }
 
 void Conductor::Close() {
-//	peer_connection_ = NULL;
-//	peer_connection_factory_ = NULL;
+	peer_connection_ = NULL;
 }
 
-bool Conductor::InitializePeerConnection() {
-	talk_base::InitializeSSL();
-	Debug("Initializing Peer Connection");
-	peer_connection_factory_  = webrtc::CreatePeerConnectionFactory();
-
-	if (!peer_connection_factory_.get()) {
-		Debug("Failed to initialize PeerConnectionFactory\n");
-		Close();
-		return false;
-	}
-
+void Conductor::Offer() {
+	// TODO add servers argument.
 	webrtc::PeerConnectionInterface::IceServers servers;
 	webrtc::PeerConnectionInterface::IceServer server;
 	server.uri = "stun:stun.l.google.com:19302";
 	servers.push_back(server);
-	peer_connection_ = peer_connection_factory_->CreatePeerConnection(servers, NULL, NULL, this);
+	peer_connection_ = peerConnectionFactory->CreatePeerConnection(servers, NULL, NULL, this);
 	if (!peer_connection_.get()) {
 		Debug("CreatePeerConnection failed");
 		Close();
 	}
 	AddStreams();
-	return peer_connection_.get() != NULL;
-}
-
-// PeerConnectionObserver implementation.
-
-void Conductor::OnError() {
-	Debug("ERROR");
-}
-
-// Called when a remote stream is added. We don't need this.
-void Conductor::OnAddStream(webrtc::MediaStreamInterface* stream) {
-	Debug("add stream\n");
-}
-
-void Conductor::OnRemoveStream(webrtc::MediaStreamInterface* stream) {
-	Debug("remove stream\n");
-}
-
-void Conductor::OnStateChange(webrtc::PeerConnectionObserver::StateType state_changed) {}
-void Conductor::OnRenegotiationNeeded() {}
-void Conductor::OnIceChange() {}
-
-void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
-	Debug("got ice");
-	std::string mid = candidate->sdp_mid();
-	int line = candidate->sdp_mline_index();
-	std::string sdp;
-	if (!candidate->ToString(&sdp)) {
-		Debug("Failed to serialize candidate\n");
-		return;
-	}
-	RegisterCandidate((char*)sdp.c_str(), (char*)mid.c_str(), line);
-}
-
-// Here we make an offer...
-void Conductor::Connect() {
-	if (!InitializePeerConnection()) {
-		Debug("Failed to initialize PeerConnection\n");
-		return;
-	}
 	peer_connection_->CreateOffer(this, NULL);
 }
 
-void Conductor::Answer(std::string& sdp) {
-	Debug("doing answer");
+void Conductor::AddAnswer(std::string& sdp) {
 	webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription("answer", sdp));
 	if (!session_description) {
-		Debug("foooooo");
 		return;
 	}
-	peer_connection_->SetRemoteDescription(SetSDHandler::Create(), session_description);
+	peer_connection_->SetRemoteDescription(SetSDPHandler::Create(), session_description);
 }
 
 void Conductor::AddCandidate(std::string& sdp, std::string& mid, int line) {
 	talk_base::scoped_ptr<webrtc::IceCandidateInterface> candidate(webrtc::CreateIceCandidate(mid, line, sdp));
 	if (!candidate.get()) {
-		Debug("Failed to parse candidate\n");
+		Debug("Failed to parse candidate");
 		return;
 	}
 	if (!peer_connection_->AddIceCandidate(candidate.get())) {
-		Debug("Failed to add candidate\n");
+		Debug("Failed to add candidate");
 		return;
 	}
 	return;
@@ -157,29 +100,43 @@ cricket::VideoCapturer* Conductor::OpenVideoCaptureDevice() {
 }
 
 void Conductor::AddStreams() {
-	Debug("Adding streams");
-	talk_base::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
-		peer_connection_factory_->CreateAudioTrack(
-			"audio_label", peer_connection_factory_->CreateAudioSource(NULL)));
+	talk_base::scoped_refptr<webrtc::MediaStreamInterface> stream =
+		peerConnectionFactory->CreateLocalMediaStream("stream_label");
+	
+	// We don't care about audio for now.	
+	//talk_base::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
+	//	peerConnectionFactory->CreateAudioTrack(
+	//		"audio_label", peerConnectionFactory->CreateAudioSource(NULL)));
+	//stream->AddTrack(audio_track);
 
 	talk_base::scoped_refptr<webrtc::VideoTrackInterface> video_track(
-		peer_connection_factory_->CreateVideoTrack(
-			"video_label", peer_connection_factory_->CreateVideoSource(OpenVideoCaptureDevice(), NULL)));
-
-	talk_base::scoped_refptr<webrtc::MediaStreamInterface> stream =
-		peer_connection_factory_->CreateLocalMediaStream("stream_label");
-
-	stream->AddTrack(audio_track);
+		peerConnectionFactory->CreateVideoTrack(
+			"video_label", peerConnectionFactory->CreateVideoSource(OpenVideoCaptureDevice(), NULL)));
 	stream->AddTrack(video_track);
+
 	if (!peer_connection_->AddStream(stream, NULL)) {
-		Debug("Adding stream to PeerConnection failed\n");
+		Debug("Adding stream to PeerConnection failed");
 	}
 }
 
-// CreateSessionDescriptionObserver implementation. (For CreateOffer)
+// PeerConnectionObserver implementation.
+
+void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
+	Debug("got ice");
+	std::string mid = candidate->sdp_mid();
+	int line = candidate->sdp_mline_index();
+	std::string sdp;
+	if (!candidate->ToString(&sdp)) {
+		Debug("Failed to serialize candidate");
+		return;
+	}
+	RegisterCandidate((char*)sdp.c_str(), (char*)mid.c_str(), line);
+}
+
+// CreateSessionDescriptionObserver implementation.
 
 void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
-	peer_connection_->SetLocalDescription(SetSDHandler::Create(), desc);
+	peer_connection_->SetLocalDescription(SetSDPHandler::Create(), desc);
 	std::string sdp;
 	desc->ToString(&sdp);
 	RegisterOffer(strdup(sdp.c_str()));
@@ -191,21 +148,31 @@ void Conductor::OnFailure(const std::string& error) {
 
 // C Interface
 
-talk_base::scoped_refptr<Conductor> pc;
 
-void InitPeerConn() {
-	pc  = new talk_base::RefCountedObject<Conductor>();
-	pc->Connect();
+void init() {
+	talk_base::InitializeSSL();
+	
+	Debug("Initializing PeerConnectionFactory");
+	peerConnectionFactory  = webrtc::CreatePeerConnectionFactory();
+	if (!peerConnectionFactory.get()) {
+		Debug("Failed to initialize PeerConnectionFactory");
+		return;
+	}
 }
 
-void Answer(char* sdp) {
-	Debug("got answer");
+talk_base::scoped_refptr<Conductor> conductor;
+void Offer() {
+	conductor  = new talk_base::RefCountedObject<Conductor>();
+	conductor->Offer();
+}
+
+void AddAnswer(char* sdp) {
 	std::string csdp = std::string(sdp);
-	pc->Answer(csdp);
+	conductor->AddAnswer(csdp);
 }
 
-void Candidate(char* sdp,char* mid, int line) {
+void AddCandidate(char* sdp,char* mid, int line) {
 	std::string csdp = std::string(sdp);
 	std::string cmid = std::string(mid);
-	pc->AddCandidate(csdp, cmid, (int)line);
+	conductor->AddCandidate(csdp, cmid, (int)line);
 }

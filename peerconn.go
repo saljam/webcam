@@ -106,7 +106,6 @@ func Debug(s *C.char) {
 //export RegisterCandidate
 func RegisterCandidate(sdp, mid *C.char, line C.int) {
 	// TODO multiplex this crap
-	log.Println("go: channeling candidate");
 	candidate <- candidateMsg{
 		Sdp:  C.GoString(sdp),
 		Mid:  C.GoString(mid),
@@ -116,20 +115,21 @@ func RegisterCandidate(sdp, mid *C.char, line C.int) {
 
 //export RegisterOffer
 func RegisterOffer(sdp *C.char) {
-	log.Println("go: channeling offer")
 	offer <- C.GoString(sdp)
 }
 
+func init() {
+	C.init()
+}
+
 func MakePeerConnection() {
-	log.Println("go: initialising peer")
-	C.InitPeerConn()
+	C.Offer()
 }
 
 func Answer(sdp string) {
-	log.Println("go: processing answer")
-	C.Answer(C.CString(sdp))
+	C.AddAnswer(C.CString(sdp))
 }
 
 func Candidate(sdp, mid string, line int) {
-	C.Candidate(C.CString(sdp), C.CString(mid), C.int(line))
+	C.AddCandidate(C.CString(sdp), C.CString(mid), C.int(line))
 }
