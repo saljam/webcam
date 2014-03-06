@@ -1,68 +1,59 @@
 /*
- * libjingle
- * Copyright 2012, Google Inc.
  * Copyright 2014, Salman Aljammaz
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Copyright 2012, Google Inc.
  */
+
 
 #include "talk/app/webrtc/videosourceinterface.h"
 #include "talk/media/devices/devicemanager.h"
+#include "talk/base/ssladapter.h"
 
-#include "conductor.h"
+#include "peerconn.hh"
 
-class DummySetSessionDescriptionObserver :
+extern "C" {
+#include "_cgo_export.h"
+#include "peerconn.h"
+}
+
+class SetSDHandler :
 public webrtc::SetSessionDescriptionObserver {
 public:
-	static DummySetSessionDescriptionObserver* Create() {
-		return new talk_base::RefCountedObject<DummySetSessionDescriptionObserver>();
+	static SetSDHandler* Create() {
+		return new talk_base::RefCountedObject<SetSDHandler>();
 	}
-	virtual void OnSuccess() {
-		printf("DummySetSessionDescriptionObserver succeeded\n");
-	}
-	virtual void OnFailure(const std::string& error) {
-		printf("DummySetSessionDescriptionObserver failed\n");
-	}
+	virtual void OnSuccess();
+	virtual void OnFailure(const std::string& error);
 
 protected:
-	DummySetSessionDescriptionObserver() {}
-	~DummySetSessionDescriptionObserver() {}
+	SetSDHandler() {}
+	~SetSDHandler() {}
 };
+
+void SetSDHandler::OnSuccess() {
+		Debug("SetSDHandler succeeded");
+}
+
+void SetSDHandler::OnFailure(const std::string& error) {
+		Debug("SetSDHandler failed");
+		Debug((char*)error.c_str());
+}
 
 bool Conductor::connection_active() const {
 	return peer_connection_.get() != NULL;
 }
 
 void Conductor::Close() {
-	peer_connection_ = NULL;
-	peer_connection_factory_ = NULL;
+//	peer_connection_ = NULL;
+//	peer_connection_factory_ = NULL;
 }
 
 bool Conductor::InitializePeerConnection() {
+	talk_base::InitializeSSL();
+	Debug("Initializing Peer Connection");
 	peer_connection_factory_  = webrtc::CreatePeerConnectionFactory();
 
 	if (!peer_connection_factory_.get()) {
-		printf("Failed to initialize PeerConnectionFactory\n");
+		Debug("Failed to initialize PeerConnectionFactory\n");
 		Close();
 		return false;
 	}
@@ -73,7 +64,7 @@ bool Conductor::InitializePeerConnection() {
 	servers.push_back(server);
 	peer_connection_ = peer_connection_factory_->CreatePeerConnection(servers, NULL, NULL, this);
 	if (!peer_connection_.get()) {
-		printf("CreatePeerConnection failed\n");
+		Debug("CreatePeerConnection failed");
 		Close();
 	}
 	AddStreams();
@@ -83,53 +74,61 @@ bool Conductor::InitializePeerConnection() {
 // PeerConnectionObserver implementation.
 
 void Conductor::OnError() {
+	Debug("ERROR");
 }
 
 // Called when a remote stream is added. We don't need this.
 void Conductor::OnAddStream(webrtc::MediaStreamInterface* stream) {
-	printf("add stream\n");
-	stream->AddRef();
+	Debug("add stream\n");
 }
 
 void Conductor::OnRemoveStream(webrtc::MediaStreamInterface* stream) {
-	printf("remove stream\n");
-	stream->AddRef();
+	Debug("remove stream\n");
 }
 
+void Conductor::OnStateChange(webrtc::PeerConnectionObserver::StateType state_changed) {}
+void Conductor::OnRenegotiationNeeded() {}
+void Conductor::OnIceChange() {}
+
 void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
-	printf("got ice\n");
+	Debug("got ice");
 	std::string mid = candidate->sdp_mid();
 	int line = candidate->sdp_mline_index();
 	std::string sdp;
 	if (!candidate->ToString(&sdp)) {
-		printf("Failed to serialize candidate\n");
+		Debug("Failed to serialize candidate\n");
 		return;
 	}
-	//candidate <- {sdp, mid, line}
+	RegisterCandidate((char*)sdp.c_str(), (char*)mid.c_str(), line);
 }
 
 // Here we make an offer...
 void Conductor::Connect() {
 	if (!InitializePeerConnection()) {
-		printf("Failed to initialize PeerConnection\n");
+		Debug("Failed to initialize PeerConnection\n");
 		return;
 	}
 	peer_connection_->CreateOffer(this, NULL);
 }
 
-void Conductor::Answer(std::string sdp) {
+void Conductor::Answer(std::string& sdp) {
+	Debug("doing answer");
 	webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription("answer", sdp));
-	peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create(), session_description);
+	if (!session_description) {
+		Debug("foooooo");
+		return;
+	}
+	peer_connection_->SetRemoteDescription(SetSDHandler::Create(), session_description);
 }
 
-void Conductor::AddCandidate(std::string sdp, std::string mid, int line) {
+void Conductor::AddCandidate(std::string& sdp, std::string& mid, int line) {
 	talk_base::scoped_ptr<webrtc::IceCandidateInterface> candidate(webrtc::CreateIceCandidate(mid, line, sdp));
 	if (!candidate.get()) {
-		printf("Failed to parse candidate\n");
+		Debug("Failed to parse candidate\n");
 		return;
 	}
 	if (!peer_connection_->AddIceCandidate(candidate.get())) {
-		printf("Failed to add candidate\n");
+		Debug("Failed to add candidate\n");
 		return;
 	}
 	return;
@@ -139,12 +138,12 @@ cricket::VideoCapturer* Conductor::OpenVideoCaptureDevice() {
 	talk_base::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(
 	cricket::DeviceManagerFactory::Create());
 	if (!dev_manager->Init()) {
-		printf("Can't create device manager\n");
+		Debug("Can't create device manager");
 		return NULL;
 	}
 	std::vector<cricket::Device> devs;
 	if (!dev_manager->GetVideoCaptureDevices(&devs)) {
-		printf("Can't enumerate video devices\n");
+		Debug("Can't enumerate video devices");
 		return NULL;
 	}
 	std::vector<cricket::Device>::iterator dev_it = devs.begin();
@@ -158,6 +157,7 @@ cricket::VideoCapturer* Conductor::OpenVideoCaptureDevice() {
 }
 
 void Conductor::AddStreams() {
+	Debug("Adding streams");
 	talk_base::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
 		peer_connection_factory_->CreateAudioTrack(
 			"audio_label", peer_connection_factory_->CreateAudioSource(NULL)));
@@ -172,19 +172,40 @@ void Conductor::AddStreams() {
 	stream->AddTrack(audio_track);
 	stream->AddTrack(video_track);
 	if (!peer_connection_->AddStream(stream, NULL)) {
-		printf("Adding stream to PeerConnection failed\n");
+		Debug("Adding stream to PeerConnection failed\n");
 	}
 }
 
-// CreateSessionDescriptionObserver implementation.
+// CreateSessionDescriptionObserver implementation. (For CreateOffer)
 
 void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
-	peer_connection_->SetLocalDescription(DummySetSessionDescriptionObserver::Create(), desc);
+	peer_connection_->SetLocalDescription(SetSDHandler::Create(), desc);
 	std::string sdp;
 	desc->ToString(&sdp);
-	//offer <- sdp;
+	RegisterOffer(strdup(sdp.c_str()));
 }
 
 void Conductor::OnFailure(const std::string& error) {
-	printf("SDP Error, oops I can't print what it is because c++ is pants.\n");
+	Debug((char *)error.c_str());
+}
+
+// C Interface
+
+talk_base::scoped_refptr<Conductor> pc;
+
+void InitPeerConn() {
+	pc  = new talk_base::RefCountedObject<Conductor>();
+	pc->Connect();
+}
+
+void Answer(char* sdp) {
+	Debug("got answer");
+	std::string csdp = std::string(sdp);
+	pc->Answer(csdp);
+}
+
+void Candidate(char* sdp,char* mid, int line) {
+	std::string csdp = std::string(sdp);
+	std::string cmid = std::string(mid);
+	pc->AddCandidate(csdp, cmid, (int)line);
 }
