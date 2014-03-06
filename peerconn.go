@@ -25,7 +25,7 @@ package main
 // #cgo CXXFLAGS: -DHASH_NAMESPACE=__gnu_cxx -DPOSIX -DDISABLE_DYNAMIC_CAST
 // #cgo CXXFLAGS: -D_REENTRANT -DSSL_USE_NSS -DHAVE_NSS_SSL_H -DSSL_USE_NSS_RNG
 // #cgo CXXFLAGS: -DNDEBUG -DNVALGRIND -DDYNAMIC_ANNOTATIONS_ENABLED=0
-// 
+//
 // #cgo CXXFLAGS: -pthread -std=c++11 -Wno-narrowing -Wno-write-strings
 // #cgo CXXFLAGS: -Iwebrtc/trunk
 // #cgo CXXFLAGS: -Iwebrtc/trunk/third_party
@@ -34,7 +34,7 @@ package main
 // #cgo CXXFLAGS: -Iwebrtc/trunk/net/third_party/nss/ssl
 // #cgo CXXFLAGS: -Iwebrtc/trunk/third_party/jsoncpp/overrides/include
 // #cgo CXXFLAGS: -Iwebrtc/trunk/third_party/jsoncpp/source/include
-// 
+//
 // #cgo LDFLAGS: -lstdc++ -lm -lnss3 -lnssutil3 -lX11 -lXext -lcrypto -lplc4 -lnspr4 -lexpat -ldl
 // #cgo LDFLAGS: -Wl,--start-group
 // #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/jsoncpp/libjsoncpp.a
@@ -94,42 +94,69 @@ package main
 // #cgo LDFLAGS: webrtc/trunk/out/Release/obj/talk/libjingle_p2p.a
 // #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/libsrtp/libsrtp.a
 // #cgo LDFLAGS: -Wl,--end-group
+//
 // #include "peerconn.h"
 import "C"
-import "log"
+import (
+	"log"
+	"unsafe"
+)
 
 //export Debug
 func Debug(s *C.char) {
 	log.Println("c++:", C.GoString(s))
 }
 
-//export RegisterCandidate
-func RegisterCandidate(sdp, mid *C.char, line C.int) {
-	// TODO multiplex this crap
-	candidate <- candidateMsg{
+//export callbackCandidate
+func callbackCandidate(pc unsafe.Pointer, sdp, mid *C.char, line C.int) {
+	conns[pc].Candidate <- candidateMsg{
 		Sdp:  C.GoString(sdp),
 		Mid:  C.GoString(mid),
 		Line: int(line),
 	}
 }
 
-//export RegisterOffer
-func RegisterOffer(sdp *C.char) {
-	offer <- C.GoString(sdp)
+//export callbackOffer
+func callbackOffer(pc unsafe.Pointer, sdp *C.char) {
+	log.Println("doing callback for 0x%x", pc)
+	log.Println("details", conns, conns[pc], conns[pc].Offer)
+	conns[pc].Offer <- C.GoString(sdp)
 }
 
 func init() {
 	C.init()
 }
 
-func MakePeerConnection() {
-	C.Offer()
+type PeerConn struct {
+	Candidate chan candidateMsg
+	Offer     chan string
+	unsafe.Pointer
 }
 
-func Answer(sdp string) {
-	C.AddAnswer(C.CString(sdp))
+// A map to make looking up the right channel easier for callbacks.
+// The alternative would be to send method pointers as callbacks but
+// that's messy with cgo and we need a container anyway.
+var conns = make(map[unsafe.Pointer]PeerConn)
+
+func Offer() PeerConn {
+	// TODO put this stuff in a NewPeerConn func and make Offer synchronous.
+	pc := PeerConn{
+		Candidate: make(chan candidateMsg),
+		Offer:     make(chan string),
+		Pointer:   C.Offer(),
+	}
+	conns[pc.Pointer] = pc
+	return pc
 }
 
-func Candidate(sdp, mid string, line int) {
-	C.AddCandidate(C.CString(sdp), C.CString(mid), C.int(line))
+func (pc PeerConn) AddAnswer(sdp string) {
+	C.AddAnswer(pc.Pointer, C.CString(sdp))
+}
+
+func (pc PeerConn) AddCandidate(sdp, mid string, line int) {
+	C.AddCandidate(pc.Pointer, C.CString(sdp), C.CString(mid), C.int(line))
+}
+
+func (pc PeerConn) Del(sdp, mid string, line int) {
+	C.AddCandidate(pc.Pointer, C.CString(sdp), C.CString(mid), C.int(line))
 }

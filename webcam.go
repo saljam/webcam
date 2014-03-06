@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"runtime"
 	"sync"
 
 	"code.google.com/p/go.net/websocket"
@@ -33,38 +32,26 @@ type offerMsg struct {
 	Type string `json:"type"`
 }
 
-var (
-	candidate = make(chan candidateMsg)
-	offer     = make(chan string)
-)
-
-func readMsgs(r io.Reader) {
-	runtime.LockOSThread()
-	
+func readMsgs(r io.Reader, pc PeerConn) {
 	dec := json.NewDecoder(r)
 	var msg map[string]interface{}
-	MakePeerConnection()
 	for {
 		err := dec.Decode(&msg)
 		if err != nil {
 			return
 		}
-		
+
 		switch msg["type"] {
-			case "candidate":
-				log.Println("got candidate")
-				Candidate(
-					msg["candidate"].(string),
-					msg["sdpMid"].(string),
-					int(msg["sdpMLineIndex"].(float64)),
-				)
-				log.Println("done candidate")
-			case "answer":
-				log.Println("got answer")
-				Answer(msg["sdp"].(string))
-				log.Println("done answer")
-			default:
-				log.Println("got unknow json message:", msg)
+		case "candidate":
+			pc.AddCandidate(
+				msg["candidate"].(string),
+				msg["sdpMid"].(string),
+				int(msg["sdpMLineIndex"].(float64)),
+			)
+		case "answer":
+			pc.AddAnswer(msg["sdp"].(string))
+		default:
+			log.Println("got unknow json message:", msg)
 		}
 	}
 }
@@ -74,17 +61,16 @@ func call(ws *websocket.Conn) {
 	defer log.Println(ws.Request().RemoteAddr, "disconnected")
 
 	enc := json.NewEncoder(ws)
-	go readMsgs(ws)
-	runtime.LockOSThread()
+	pc := Offer()
+	go readMsgs(ws, pc)
 
 	for {
 		select {
-		case c := <-candidate:
-			log.Println("local candidate")
+		case c := <-pc.Candidate:
 			c.Type = "candidate"
 			enc.Encode(c)
-		case sdp := <-offer:
-			log.Println("local offer")
+		case sdp := <-pc.Offer:
+			log.Println("sending offer")
 			enc.Encode(offerMsg{
 				Sdp:  sdp,
 				Type: "offer",

@@ -33,12 +33,8 @@ protected:
 	~SetSDPHandler() {}
 };
 
-bool Conductor::connection_active() const {
-	return peer_connection_.get() != NULL;
-}
-
 void Conductor::Close() {
-	peer_connection_ = NULL;
+	pc = NULL;
 }
 
 void Conductor::Offer() {
@@ -47,13 +43,13 @@ void Conductor::Offer() {
 	webrtc::PeerConnectionInterface::IceServer server;
 	server.uri = "stun:stun.l.google.com:19302";
 	servers.push_back(server);
-	peer_connection_ = peerConnectionFactory->CreatePeerConnection(servers, NULL, NULL, this);
-	if (!peer_connection_.get()) {
+	pc = peerConnectionFactory->CreatePeerConnection(servers, NULL, NULL, this);
+	if (pc.get() == NULL) {
 		Debug("CreatePeerConnection failed");
 		Close();
 	}
 	AddStreams();
-	peer_connection_->CreateOffer(this, NULL);
+	pc->CreateOffer(this, NULL);
 }
 
 void Conductor::AddAnswer(std::string& sdp) {
@@ -61,7 +57,7 @@ void Conductor::AddAnswer(std::string& sdp) {
 	if (!session_description) {
 		return;
 	}
-	peer_connection_->SetRemoteDescription(SetSDPHandler::Create(), session_description);
+	pc->SetRemoteDescription(SetSDPHandler::Create(), session_description);
 }
 
 void Conductor::AddCandidate(std::string& sdp, std::string& mid, int line) {
@@ -70,7 +66,7 @@ void Conductor::AddCandidate(std::string& sdp, std::string& mid, int line) {
 		Debug("Failed to parse candidate");
 		return;
 	}
-	if (!peer_connection_->AddIceCandidate(candidate.get())) {
+	if (!pc->AddIceCandidate(candidate.get())) {
 		Debug("Failed to add candidate");
 		return;
 	}
@@ -114,7 +110,7 @@ void Conductor::AddStreams() {
 			"video_label", peerConnectionFactory->CreateVideoSource(OpenVideoCaptureDevice(), NULL)));
 	stream->AddTrack(video_track);
 
-	if (!peer_connection_->AddStream(stream, NULL)) {
+	if (!pc->AddStream(stream, NULL)) {
 		Debug("Adding stream to PeerConnection failed");
 	}
 }
@@ -130,16 +126,17 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
 		Debug("Failed to serialize candidate");
 		return;
 	}
-	RegisterCandidate((char*)sdp.c_str(), (char*)mid.c_str(), line);
+	callbackCandidate(this, (char*)sdp.c_str(), (char*)mid.c_str(), line);
 }
 
 // CreateSessionDescriptionObserver implementation.
 
 void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
-	peer_connection_->SetLocalDescription(SetSDPHandler::Create(), desc);
+	pc->SetLocalDescription(SetSDPHandler::Create(), desc);
 	std::string sdp;
 	desc->ToString(&sdp);
-	RegisterOffer(strdup(sdp.c_str()));
+	Debug("offer callback");
+	callbackOffer(this, strdup(sdp.c_str()));
 }
 
 void Conductor::OnFailure(const std::string& error) {
@@ -147,7 +144,6 @@ void Conductor::OnFailure(const std::string& error) {
 }
 
 // C Interface
-
 
 void init() {
 	talk_base::InitializeSSL();
@@ -160,19 +156,21 @@ void init() {
 	}
 }
 
-talk_base::scoped_refptr<Conductor> conductor;
-void Offer() {
-	conductor  = new talk_base::RefCountedObject<Conductor>();
-	conductor->Offer();
+void* Offer() {
+	Conductor *pc = new Conductor();
+	pc->Offer();
+	return (void*)pc;
 }
 
-void AddAnswer(char* sdp) {
+void AddAnswer(void* pc, char* sdp) {
+	Conductor* cpc = (Conductor*)pc;
 	std::string csdp = std::string(sdp);
-	conductor->AddAnswer(csdp);
+	cpc->AddAnswer(csdp);
 }
 
-void AddCandidate(char* sdp,char* mid, int line) {
+void AddCandidate(void* pc, char* sdp,char* mid, int line) {
+	Conductor* cpc = (Conductor*)pc;
 	std::string csdp = std::string(sdp);
 	std::string cmid = std::string(mid);
-	conductor->AddCandidate(csdp, cmid, (int)line);
+	cpc->AddCandidate(csdp, cmid, (int)line);
 }

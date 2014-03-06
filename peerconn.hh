@@ -13,14 +13,13 @@ class Conductor :
 public webrtc::PeerConnectionObserver,
 public webrtc::CreateSessionDescriptionObserver {
 public:
-	bool connection_active() const;
 	void Offer();
 	void AddAnswer(std::string& sdp);
 	void AddCandidate(std::string& sdp,std::string& mid, int line);
 	void Close();
 
 protected:
-	talk_base::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
+	talk_base::scoped_refptr<webrtc::PeerConnectionInterface> pc;
 
 	void AddStreams();
 	cricket::VideoCapturer* OpenVideoCaptureDevice();
@@ -37,6 +36,8 @@ protected:
 	// CreateSessionDescriptionObserver implementation.
 	virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc);
 	virtual void OnFailure(const std::string& error);
+	virtual int AddRef(){} // We manage own memory.
+	virtual int Release(){}
 };
 
 talk_base::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peerConnectionFactory;
