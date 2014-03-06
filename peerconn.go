@@ -94,7 +94,7 @@ package main
 // #cgo LDFLAGS: webrtc/trunk/out/Release/obj/talk/libjingle_p2p.a
 // #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/libsrtp/libsrtp.a
 // #cgo LDFLAGS: -Wl,--end-group
-// #include "conductor.h"
+// #include "peerconn.h"
 import "C"
 import "log"
 
