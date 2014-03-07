@@ -22,7 +22,6 @@ protected:
 	talk_base::scoped_refptr<webrtc::PeerConnectionInterface> pc;
 
 	void AddStreams();
-	cricket::VideoCapturer* OpenVideoCaptureDevice();
 
 	// PeerConnectionObserver implementation.
 	virtual void OnError(){}
@@ -40,4 +39,6 @@ protected:
 	virtual int Release(){}
 };
 
+cricket::VideoCapturer* OpenVideoCaptureDevice();
+talk_base::scoped_refptr<webrtc::VideoSourceInterface> videoSource;
 talk_base::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peerConnectionFactory;

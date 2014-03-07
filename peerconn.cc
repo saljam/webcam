@@ -74,27 +74,6 @@ void Conductor::AddCandidate(std::string& sdp, std::string& mid, int line) {
 	return;
 }
 
-cricket::VideoCapturer* Conductor::OpenVideoCaptureDevice() {
-	talk_base::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(
-	cricket::DeviceManagerFactory::Create());
-	if (!dev_manager->Init()) {
-		Debug("Can't create device manager");
-		return NULL;
-	}
-	std::vector<cricket::Device> devs;
-	if (!dev_manager->GetVideoCaptureDevices(&devs)) {
-		Debug("Can't enumerate video devices");
-		return NULL;
-	}
-	std::vector<cricket::Device>::iterator dev_it = devs.begin();
-	cricket::VideoCapturer* capturer = NULL;
-	for (; dev_it != devs.end(); ++dev_it) {
-	capturer = dev_manager->CreateVideoCapturer(*dev_it);
-	if (capturer != NULL)
-		break;
-	}
-	return capturer;
-}
 
 void Conductor::AddStreams() {
 	talk_base::scoped_refptr<webrtc::MediaStreamInterface> stream =
@@ -108,7 +87,7 @@ void Conductor::AddStreams() {
 
 	talk_base::scoped_refptr<webrtc::VideoTrackInterface> video_track(
 		peerConnectionFactory->CreateVideoTrack(
-			"video_label", peerConnectionFactory->CreateVideoSource(OpenVideoCaptureDevice(), NULL)));
+			"video_label", videoSource));
 	stream->AddTrack(video_track);
 
 	if (!pc->AddStream(stream, NULL)) {
@@ -145,6 +124,29 @@ void Conductor::OnFailure(const std::string& error) {
 
 // C Interface
 
+cricket::VideoCapturer* OpenVideoCaptureDevice() {
+	talk_base::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(
+	cricket::DeviceManagerFactory::Create());
+	if (!dev_manager->Init()) {
+		Debug("Can't create device manager");
+		return NULL;
+	}
+	std::vector<cricket::Device> devs;
+	if (!dev_manager->GetVideoCaptureDevices(&devs)) {
+		Debug("Can't enumerate video devices");
+		return NULL;
+	}
+	std::vector<cricket::Device>::iterator dev_it = devs.begin();
+	cricket::VideoCapturer* capturer = NULL;
+	for (; dev_it != devs.end(); ++dev_it) {
+	capturer = dev_manager->CreateVideoCapturer(*dev_it);
+	if (capturer != NULL)
+		break;
+	}
+	return capturer;
+}
+
+
 void init() {
 	talk_base::InitializeSSL();
 	
@@ -154,6 +156,8 @@ void init() {
 		Debug("Failed to initialize PeerConnectionFactory");
 		return;
 	}
+	
+	videoSource = peerConnectionFactory->CreateVideoSource(OpenVideoCaptureDevice(), NULL);
 }
 
 void* Offer() {
