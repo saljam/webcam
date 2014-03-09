@@ -16,7 +16,7 @@ Once that's done go install should work as expected to produce the webcam binary
 Set up the stream handler by calling webcam.NewWebcam(), then register that with http.Handle().
 
 	stream := webcam.NewWebcam()
-	http.Handle(<prefix>)
+	http.Handle(<prefix>, stream)
 
 You can copy the JS code in webcam/ui/plainindex.html. The webcam handler also serves a Polymer element  to make the client side easier. Any request URL path ending with "webrtc-stream.html" will be given the Polymer element declaration. For example, a complete index.html could be:
 
