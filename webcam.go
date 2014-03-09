@@ -1,23 +1,15 @@
-// Command webcam serves a web stream from a camera.
-package main
+// Package webcam provides an http.Handler to serve a WebRTC stream from a camera.
+package webcam
 
 import (
 	"encoding/json"
-	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"sync"
+	"strings"
 
 	"code.google.com/p/go.net/websocket"
-)
-
-var (
-	addr     = flag.String("addr", ":8003", "http address to listen on")
-	dataRoot = flag.String("data", "./ui", "data dir")
-
-	c, a     *websocket.Conn
-	wg, done sync.WaitGroup
 )
 
 type candidateMsg struct {
@@ -82,9 +74,19 @@ func call(ws *websocket.Conn) {
 	}
 }
 
-func main() {
-	flag.Parse()
-	http.Handle("/call", websocket.Handler(call))
-	http.Handle("/", http.FileServer(http.Dir(*dataRoot)))
-	log.Fatal(http.ListenAndServe(*addr, nil))
+type Webcam struct {
+	wsHandler http.Handler
+}
+
+func (s *Webcam) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasSuffix(r.URL.Path, "webrtc-stream.html") {
+		p := r.URL.Path[:len(r.URL.Path)-len("webrtc-stream.html")]
+		fmt.Fprintf(w, template, p)
+		return
+	}
+	s.wsHandler.ServeHTTP(w, r)
+}
+
+func NewWebcam() *Webcam {
+	return &Webcam{websocket.Handler(call)}
 }
