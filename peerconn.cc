@@ -150,12 +150,14 @@ int WebcamConductor::Release() const { return 1; }
 // C Interface
 
 cricket::VideoCapturer* OpenVideoCaptureDevice() {
+	Debug("Creating device manager");
 	rtc::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(
 	cricket::DeviceManagerFactory::Create());
 	if (!dev_manager->Init()) {
 		Debug("Can't create device manager");
 		return NULL;
 	}
+	Debug("Enumerating devices");
 	std::vector<cricket::Device> devs;
 	if (!dev_manager->GetVideoCaptureDevices(&devs)) {
 		Debug("Can't enumerate video devices");
@@ -168,6 +170,7 @@ cricket::VideoCapturer* OpenVideoCaptureDevice() {
 	if (capturer != NULL)
 		break;
 	}
+	Debug("Found a capturer");
 	return capturer;
 }
 
@@ -182,7 +185,9 @@ void init() {
 		return;
 	}
 	
+	Debug("Getting video source");
 	videoSource = peerConnectionFactory->CreateVideoSource(OpenVideoCaptureDevice(), NULL);
+	Debug("Got video source");
 }
 
 void* Offer() {
