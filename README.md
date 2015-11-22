@@ -1,22 +1,18 @@
 # Web Browser ← Camera
 
-A one-way camera stream using WebRTC.
+A one-way camera stream using the WebRTC native libraries.
 
 ## Building
 
-To build this you'll first need to checkout and build the WebRTC native libraries into
-the directory webrtc. (Or bind/symlink/etc. that to where it is.)
+To use this package you have to run `make` first. That'll checkout the WebRTC source and build it. Make sure you've got the [prerequisite software](http://www.webrtc.org/native-code/development/prerequisite-sw). This usually takes a while.
 
-http://www.webrtc.org/reference/getting-started can guide you through that.
-
-Once that's done go install should work as expected to produce the webcam binary.
+Once that's done go build should work as usual.
 
 ## Using
 
 Set up the stream handler by calling webcam.NewWebcam(), then register that with http.Handle().
 
-	stream := webcam.NewWebcam()
-	http.Handle(<prefix>, stream)
+	http.HandleFunc(<prefix>, webcam.HandleHTTP)
 
 You can copy the JS code in webcam/ui/plainindex.html. The webcam handler also serves a Polymer element  to make the client side easier. Any request URL path ending with "webrtc-stream.html" will be given the Polymer element declaration. For example, a complete index.html could be:
 
@@ -30,7 +26,3 @@ You can copy the JS code in webcam/ui/plainindex.html. The webcam handler also s
 	<webrtc-stream></webrtc-stream>
 
 Where <prefix> is the prefix for the stream handler. Just make sure to import platform.js and polymer.html before you import webrtc-stream.
-
-## Todo
-
- - Split out the WebRTC wrapper parts into their own package.
