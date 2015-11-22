@@ -9,7 +9,7 @@ namespace webrtc {
 class VideoCaptureModule;
 }
 
-class Conductor :
+class WebcamConductor :
 public webrtc::PeerConnectionObserver,
 public webrtc::CreateSessionDescriptionObserver {
 public:
@@ -19,7 +19,7 @@ public:
 	void Close();
 
 protected:
-	talk_base::scoped_refptr<webrtc::PeerConnectionInterface> pc;
+	rtc::scoped_refptr<webrtc::PeerConnectionInterface> pc;
 
 	void AddStreams();
 
@@ -28,6 +28,7 @@ protected:
 	virtual void OnStateChange(webrtc::PeerConnectionObserver::StateType state_changed){}
 	virtual void OnAddStream(webrtc::MediaStreamInterface* stream){}
 	virtual void OnRemoveStream(webrtc::MediaStreamInterface* stream){}
+	virtual void OnDataChannel(webrtc::DataChannelInterface* data_channel){};
 	virtual void OnRenegotiationNeeded(){}
 	virtual void OnIceChange(){}
 	virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate);
@@ -35,10 +36,10 @@ protected:
 	// CreateSessionDescriptionObserver implementation.
 	virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc);
 	virtual void OnFailure(const std::string& error);
-	virtual int AddRef(){} // We manage own memory.
-	virtual int Release(){}
+	virtual int AddRef() const; // We manage own memory.
+	virtual int Release() const;
 };
 
 cricket::VideoCapturer* OpenVideoCaptureDevice();
-talk_base::scoped_refptr<webrtc::VideoSourceInterface> videoSource;
-talk_base::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peerConnectionFactory;
+rtc::scoped_refptr<webrtc::VideoSourceInterface> videoSource;
+rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peerConnectionFactory;

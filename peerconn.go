@@ -1,99 +1,48 @@
 package webcam
 
-// #cgo CXXFLAGS: -DV8_DEPRECATION_WARNINGS -DEXPAT_RELATIVE_PATH
-// #cgo CXXFLAGS: -DFEATURE_ENABLE_VOICEMAIL -DGTEST_RELATIVE_PATH
-// #cgo CXXFLAGS: -DJSONCPP_RELATIVE_PATH -DLOGGING=1 -DSRTP_RELATIVE_PATH
-// #cgo CXXFLAGS: -DFEATURE_ENABLE_SSL -DFEATURE_ENABLE_PSTN -DHAVE_SRTP
-// #cgo CXXFLAGS: -DHAVE_WEBRTC_VIDEO -DHAVE_WEBRTC_VOICE
-// #cgo CXXFLAGS: -DUSE_WEBRTC_DEV_BRANCH -D_FILE_OFFSET_BITS=64
-// #cgo CXXFLAGS: -DCHROMIUM_BUILD -DTOOLKIT_VIEWS=1 -DUI_COMPOSITOR_IMAGE_TRANSPORT
-// #cgo CXXFLAGS: -DUSE_AURA=1 -DUSE_CAIRO=1 -DUSE_GLIB=1
-// #cgo CXXFLAGS: -DUSE_DEFAULT_RENDER_THEME=1 -DUSE_LIBJPEG_TURBO=1 -DUSE_NSS=1
-// #cgo CXXFLAGS: -DUSE_X11=1 -DUSE_CLIPBOARD_AURAX11=1 -DENABLE_ONE_CLICK_SIGNIN
-// #cgo CXXFLAGS: -DUSE_XI2_MT=2 -DENABLE_REMOTING=1 -DENABLE_WEBRTC=1
-// #cgo CXXFLAGS: -DENABLE_PEPPER_CDMS -DENABLE_CONFIGURATION_POLICY
-// #cgo CXXFLAGS: -DENABLE_INPUT_SPEECH -DENABLE_NOTIFICATIONS -DUSE_UDEV
-// #cgo CXXFLAGS: -DENABLE_EGLIMAGE=1 -DENABLE_TASK_MANAGER=1 -DENABLE_EXTENSIONS=1
-// #cgo CXXFLAGS: -DENABLE_PLUGIN_INSTALLATION=1 -DENABLE_PLUGINS=1
-// #cgo CXXFLAGS: -DENABLE_SESSION_SERVICE=1 -DENABLE_THEMES=1
-// #cgo CXXFLAGS: -DENABLE_AUTOFILL_DIALOG=1 -DENABLE_BACKGROUND=1
-// #cgo CXXFLAGS: -DENABLE_AUTOMATION=1 -DENABLE_GOOGLE_NOW=1 -DCLD_VERSION=2
-// #cgo CXXFLAGS: -DENABLE_FULL_PRINTING=1 -DENABLE_PRINTING=1 -DENABLE_SPELLCHECK=1
-// #cgo CXXFLAGS: -DENABLE_CAPTIVE_PORTAL_DETECTION=1 -DENABLE_APP_LIST=1
-// #cgo CXXFLAGS: -DENABLE_SETTINGS_APP=1 -DENABLE_MANAGED_USERS=1 -DENABLE_MDNS=1
-// #cgo CXXFLAGS: -DLIBPEERCONNECTION_LIB=1 -DLINUX -DHAVE_SCTP
-// #cgo CXXFLAGS: -DHASH_NAMESPACE=__gnu_cxx -DPOSIX -DDISABLE_DYNAMIC_CAST
-// #cgo CXXFLAGS: -D_REENTRANT -DSSL_USE_NSS -DHAVE_NSS_SSL_H -DSSL_USE_NSS_RNG
-// #cgo CXXFLAGS: -DNDEBUG -DNVALGRIND -DDYNAMIC_ANNOTATIONS_ENABLED=0
+// #cgo CXXFLAGS: -DWEBRTC_POSIX
 //
 // #cgo CXXFLAGS: -pthread -std=c++11 -Wno-narrowing -Wno-write-strings
-// #cgo CXXFLAGS: -Iwebrtc/trunk
-// #cgo CXXFLAGS: -Iwebrtc/trunk/third_party
-// #cgo CXXFLAGS: -Iwebrtc/trunk/third_party/webrtc
-// #cgo CXXFLAGS: -Iwebrtc/trunk/webrtc
-// #cgo CXXFLAGS: -Iwebrtc/trunk/net/third_party/nss/ssl
-// #cgo CXXFLAGS: -Iwebrtc/trunk/third_party/jsoncpp/overrides/include
-// #cgo CXXFLAGS: -Iwebrtc/trunk/third_party/jsoncpp/source/include
+// #cgo CXXFLAGS: -Iwebrtc/src -Iwebrtc/src/webrtc
 //
-// #cgo LDFLAGS: -lstdc++ -lm -lnss3 -lnssutil3 -lX11 -lXext -lcrypto -lplc4 -lnspr4 -lexpat -ldl
-// #cgo LDFLAGS: -Wl,--start-group
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/jsoncpp/libjsoncpp.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/talk/libjingle_peerconnection.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/net/third_party/nss/libcrssl.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/talk/libjingle.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/talk/libjingle_media.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/libyuv.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/libjpeg_turbo/libjpeg_turbo.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/usrsctp/libusrsctplib.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libvideo_capture_module.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libwebrtc_utility.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libaudio_coding_module.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libCNG.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/common_audio/libcommon_audio.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/system_wrappers/source/libsystem_wrappers.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/common_audio/libcommon_audio_sse2.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libG711.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libG722.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libiLBC.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libiSAC.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libiSACFix.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libPCM16B.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libNetEq.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libwebrtc_opus.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/opus/libopus.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libacm2.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libNetEq4.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libmedia_file.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libwebrtc_video_coding.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libwebrtc_i420.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/common_video/libcommon_video.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/video_coding/utility/libvideo_coding_utility.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/video_coding/codecs/vp8/libwebrtc_vp8.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/libvpx/libvpx.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/libvpx/libvpx_asm_offsets_vp8.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/libvpx/libvpx_intrinsics_mmx.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/libvpx/libvpx_intrinsics_sse2.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/libvpx/libvpx_intrinsics_ssse3.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libvideo_render_module.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/video_engine/libvideo_engine_core.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/librtp_rtcp.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libpaced_sender.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libremote_bitrate_estimator.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/remote_bitrate_estimator/librbe_components.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libbitrate_controller.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libvideo_processing.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libvideo_processing_sse2.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/voice_engine/libvoice_engine.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libaudio_conference_mixer.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libaudio_processing.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libaudioproc_debug_proto.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/protobuf/libprotobuf_lite.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libaudio_processing_sse2.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/webrtc/modules/libaudio_device.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/talk/libjingle_sound.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/talk/libjingle_p2p.a
-// #cgo LDFLAGS: webrtc/trunk/out/Release/obj/third_party/libsrtp/libsrtp.a
-// #cgo LDFLAGS: -Wl,--end-group
+// #cgo LDFLAGS: -lstdc++ -lm -lcrypto -lexpat -ldl
+// #cgo LDFLAGS: -framework CoreGraphics -framework CoreAudio
+// #cgo LDFLAGS: -framework QTKit -framework ApplicationServices
+// #cgo LDFLAGS: -framework AVFoundation -framework AudioToolbox
+// #cgo LDFLAGS: -framework CoreServices -framework CoreFoundation -framework Foundation
+// #cgo LDFLAGS: -L${SRCDIR}/webrtc/src/out/Release -Wl
+// #cgo LDFLAGS: -lvideo_render_module_internal_impl -lvideo_render
+// #cgo LDFLAGS: -lstunprober -lrtc_xmpp -lrtc_xmllite -lrtc_sound -lmetrics
+// #cgo LDFLAGS: -ljingle_peerconnection -ljingle_p2p -ljingle_media
+// #cgo LDFLAGS: -lisac_fix -lgmock -lgenperf_libs -lframe_editing_lib
+// #cgo LDFLAGS: -lexpat -ldesktop_capture -lcommand_line_parser
+// #cgo LDFLAGS: -lchannel_transport -lbwe_tools_util -lbwe_simulator
+// #cgo LDFLAGS: -laudioproc_protobuf_utils
+// #cgo LDFLAGS: -lwebrtc
+// #cgo LDFLAGS: -lvoice_engine -lvideo_render_module -lvideo_processing -lusrsctplib
+// #cgo LDFLAGS: -lsrtp -lrtc_p2p -lrtc_event_log -lrtc_base
+// #cgo LDFLAGS: -lremote_bitrate_estimator -lpaced_sender
+// #cgo LDFLAGS: -ljsoncpp -lgflags -lframe_generator -ldesktop_capture_differ_sse2
+// #cgo LDFLAGS: -lboringssl
+// #cgo LDFLAGS: -lbitrate_controller
+// #cgo LDFLAGS: -laudio_device -laudio_conference_mixer
+// #cgo LDFLAGS: -lwebrtc_video_coding -lwebrtc_utility -lwebrtc_i420 -lwebrtc_h264
+// #cgo LDFLAGS: -lvideo_processing_sse2 -lrtp_rtcp -lrtc_event_log_proto
+// #cgo LDFLAGS: -lmedia_file
+// #cgo LDFLAGS: -lfield_trial_default -lfield_trial
+// #cgo LDFLAGS: -laudio_coding_module -lwebrtc_vp9 -lwebrtc_vp8 -lvideo_coding_utility
+// #cgo LDFLAGS: -lrent_a_codec -lred -lneteq -lisac_common -lilbc
+// #cgo LDFLAGS: -lg722 -lcng -lwebrtc_opus -lwebrtc_common -lpcm16b -lopus -lg711
+// #cgo LDFLAGS: -lvpx_new -lvpx_intrinsics_sse4_1 -lvpx_intrinsics_sse2
+// #cgo LDFLAGS: -lvpx_intrinsics_mmx -lvpx_intrinsics_avx2
+// #cgo LDFLAGS: -lvpx_intrinsics_avx -lvpx_intrinsics_ssse3
+// #cgo LDFLAGS: -lvideo_capture_module -lvideo_capture -lcommon_video -lyuv -ljpeg_turbo
+// #cgo LDFLAGS: -lprotobuf_lite -laudio_processing_sse2 -laudio_processing
+// #cgo LDFLAGS: -lmetrics_default -lisac -lhistogram
+// #cgo LDFLAGS: -lcommon_audio -laudioproc_debug_proto
+// #cgo LDFLAGS: -laudio_encoder_interface -laudio_decoder_interface
+// #cgo LDFLAGS: -lopenmax_dl -lcommon_audio_sse2
+// #cgo LDFLAGS: -lsystem_wrappers -lrtc_base_approved
 //
 // #include "peerconn.h"
 import "C"

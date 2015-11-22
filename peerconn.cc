@@ -1,12 +1,28 @@
 /*
- * Copyright 2014, Salman Aljammaz
+ * Copyright 2014-2015, Salman Aljammaz
  * Copyright 2012, Google Inc.
+ *
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "webrtc/base/nethelpers.h"
+#include "webrtc/base/physicalsocketserver.h"
+#include "webrtc/base/scoped_ptr.h"
+#include "webrtc/base/signalthread.h"
+#include "webrtc/base/sigslot.h"
+
+#include "webrtc/base/common.h"
+#include "webrtc/base/nethelpers.h"
+
+#include "talk/app/webrtc/test/fakeconstraints.h"
 
 #include "talk/app/webrtc/videosourceinterface.h"
 #include "talk/media/devices/devicemanager.h"
-#include "talk/base/ssladapter.h"
+#include "base/ssladapter.h"
 
 #include "peerconn.hh"
 
@@ -19,7 +35,7 @@ class SetSDPHandler :
 public webrtc::SetSessionDescriptionObserver {
 public:
 	static SetSDPHandler* Create() {
-		return new talk_base::RefCountedObject<SetSDPHandler>();
+		return new rtc::RefCountedObject<SetSDPHandler>();
 	}
 	virtual void OnSuccess() {
 		Debug("SetSDPHandler succeeded");
@@ -33,17 +49,18 @@ protected:
 	~SetSDPHandler() {}
 };
 
-void Conductor::Close() {
+void WebcamConductor::Close() {
 	pc = NULL;
 }
 
-void Conductor::Offer() {
+void WebcamConductor::Offer() {
 	// TODO add servers argument.
 	webrtc::PeerConnectionInterface::IceServers servers;
 	webrtc::PeerConnectionInterface::IceServer server;
 	server.uri = "stun:stun.l.google.com:19302";
 	servers.push_back(server);
-	pc = peerConnectionFactory->CreatePeerConnection(servers, NULL, NULL, this);
+	webrtc::FakeConstraints constraints;
+	pc = peerConnectionFactory->CreatePeerConnection(servers, &constraints, NULL, NULL, this);
 	if (pc.get() == NULL) {
 		Debug("CreatePeerConnection failed");
 		Close();
@@ -53,16 +70,20 @@ void Conductor::Offer() {
 	pc->CreateOffer(this, NULL);
 }
 
-void Conductor::AddAnswer(std::string& sdp) {
-	webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription("answer", sdp));
+void WebcamConductor::AddAnswer(std::string& sdp) {
+	webrtc::SdpParseError error;
+	webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription("answer", sdp, &error));
+	// Let's ignore the error for now. Boo.
 	if (!session_description) {
 		return;
 	}
 	pc->SetRemoteDescription(SetSDPHandler::Create(), session_description);
 }
 
-void Conductor::AddCandidate(std::string& sdp, std::string& mid, int line) {
-	talk_base::scoped_ptr<webrtc::IceCandidateInterface> candidate(webrtc::CreateIceCandidate(mid, line, sdp));
+void WebcamConductor::AddCandidate(std::string& sdp, std::string& mid, int line) {
+	webrtc::SdpParseError error;
+	rtc::scoped_ptr<webrtc::IceCandidateInterface> candidate(webrtc::CreateIceCandidate(mid, line, sdp, &error));
+	// Let's ignore the error here too...
 	if (!candidate.get()) {
 		Debug("Failed to parse candidate");
 		return;
@@ -75,29 +96,29 @@ void Conductor::AddCandidate(std::string& sdp, std::string& mid, int line) {
 }
 
 
-void Conductor::AddStreams() {
-	talk_base::scoped_refptr<webrtc::MediaStreamInterface> stream =
+void WebcamConductor::AddStreams() {
+	rtc::scoped_refptr<webrtc::MediaStreamInterface> stream =
 		peerConnectionFactory->CreateLocalMediaStream("stream_label");
 	
 	// We don't care about audio for now.	
-	//talk_base::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
+	//rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
 	//	peerConnectionFactory->CreateAudioTrack(
 	//		"audio_label", peerConnectionFactory->CreateAudioSource(NULL)));
 	//stream->AddTrack(audio_track);
 
-	talk_base::scoped_refptr<webrtc::VideoTrackInterface> video_track(
+	rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track(
 		peerConnectionFactory->CreateVideoTrack(
 			"video_label", videoSource));
 	stream->AddTrack(video_track);
 
-	if (!pc->AddStream(stream, NULL)) {
+	if (!pc->AddStream(stream)) {
 		Debug("Adding stream to PeerConnection failed");
 	}
 }
 
 // PeerConnectionObserver implementation.
 
-void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
+void WebcamConductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
 	std::string mid = candidate->sdp_mid();
 	int line = candidate->sdp_mline_index();
 	std::string sdp;
@@ -110,7 +131,7 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
 
 // CreateSessionDescriptionObserver implementation.
 
-void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
+void WebcamConductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
 	pc->SetLocalDescription(SetSDPHandler::Create(), desc);
 	std::string sdp;
 	desc->ToString(&sdp);
@@ -118,14 +139,18 @@ void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc) {
 	callbackOffer(this, strdup(sdp.c_str()));
 }
 
-void Conductor::OnFailure(const std::string& error) {
+void WebcamConductor::OnFailure(const std::string& error) {
 	Debug((char *)error.c_str());
 }
+
+int WebcamConductor::AddRef() const { return 1; }
+
+int WebcamConductor::Release() const { return 1; }
 
 // C Interface
 
 cricket::VideoCapturer* OpenVideoCaptureDevice() {
-	talk_base::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(
+	rtc::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(
 	cricket::DeviceManagerFactory::Create());
 	if (!dev_manager->Init()) {
 		Debug("Can't create device manager");
@@ -148,10 +173,10 @@ cricket::VideoCapturer* OpenVideoCaptureDevice() {
 
 
 void init() {
-	talk_base::InitializeSSL();
+	rtc::InitializeSSL();
 	
 	Debug("Initializing PeerConnectionFactory");
-	peerConnectionFactory  = webrtc::CreatePeerConnectionFactory();
+	peerConnectionFactory = webrtc::CreatePeerConnectionFactory();
 	if (peerConnectionFactory.get() == NULL) {
 		Debug("Failed to initialize PeerConnectionFactory");
 		return;
@@ -161,19 +186,19 @@ void init() {
 }
 
 void* Offer() {
-	Conductor *pc = new Conductor();
+	WebcamConductor *pc = new WebcamConductor();
 	pc->Offer();
 	return (void*)pc;
 }
 
 void AddAnswer(void* pc, char* sdp) {
-	Conductor* cpc = (Conductor*)pc;
+	WebcamConductor* cpc = (WebcamConductor*)pc;
 	std::string csdp = std::string(sdp);
 	cpc->AddAnswer(csdp);
 }
 
 void AddCandidate(void* pc, char* sdp,char* mid, int line) {
-	Conductor* cpc = (Conductor*)pc;
+	WebcamConductor* cpc = (WebcamConductor*)pc;
 	std::string csdp = std::string(sdp);
 	std::string cmid = std::string(mid);
 	cpc->AddCandidate(csdp, cmid, (int)line);
