@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/saljam/webcam"
+	"0f.io/webcam"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 
 func main() {
 	flag.Parse()
-	http.Handle("/cam/", webcam.NewWebcam())
+	http.HandleFunc("/cam/", webcam.ServeHTTP)
 	http.Handle("/", http.FileServer(http.Dir(*dataRoot)))
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
