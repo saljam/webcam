@@ -44,7 +44,7 @@ func readMsgs(r io.Reader, pc PeerConn) {
 			)
 		case "answer":
 			log.Println("got answer")
-			pc.AddAnswer(msg["sdp"].(string))
+			pc.Answer(msg["sdp"].(string))
 		default:
 			log.Println("got unknow json message:", msg)
 		}
@@ -56,23 +56,22 @@ func call(ws *websocket.Conn) {
 	defer log.Println(ws.Request().RemoteAddr, "disconnected")
 
 	enc := json.NewEncoder(ws)
-	pc := Offer()
+	pc := NewPeerConn()
 	go readMsgs(ws, pc)
 
-	for {
-		select {
-		case c := <-pc.Candidate:
-			log.Println("sending candidate")
-			c.Type = "candidate"
-			enc.Encode(c)
-		case sdp := <-pc.Offer:
-			log.Println("sending offer")
-			enc.Encode(offerMsg{
-				Sdp:  sdp,
-				Type: "offer",
-			})
-		}
+	log.Println("sending offer")
+	enc.Encode(offerMsg{
+		Sdp:  pc.GenerateOffer(),
+		Type: "offer",
+	})
+
+	for c := range pc.Candidate {
+		log.Println("sending candidate")
+		c.Type = "candidate"
+		enc.Encode(c)
 	}
+
+	// TODO wait for readMsgs
 }
 
 // ServeHTTP handles WebRTC requests over websockets.
