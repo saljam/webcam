@@ -25,7 +25,7 @@ type offerMsg struct {
 	Type string `json:"type"`
 }
 
-func readMsgs(r io.Reader, pc PeerConn) {
+func readMsgs(r io.Reader, pc Session) {
 	dec := json.NewDecoder(r)
 	var msg map[string]interface{}
 	for {
@@ -56,18 +56,18 @@ func call(ws *websocket.Conn) {
 	defer log.Println(ws.Request().RemoteAddr, "disconnected")
 
 	enc := json.NewEncoder(ws)
-	pc := NewPeerConn()
+	pc := NewSession()
 	go readMsgs(ws, pc)
 
 	log.Println("sending offer")
 	enc.Encode(offerMsg{
-		Sdp:  pc.GenerateOffer(),
+		Sdp:  pc.Offer(),
 		Type: "offer",
 	})
 
-	for c := range pc.Candidate {
+	for c := range pc.Candidates {
 		log.Println("sending candidate")
-		c.Type = "candidate"
+		//c.Type = "candidate"
 		enc.Encode(c)
 	}
 

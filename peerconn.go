@@ -6,61 +6,90 @@ package webcam
 // #include <owr/owr_session.h>
 // #include <owr/owr_media_session.h>
 //
-// OwrMediaSession* new_session();
+// void init();
+// OwrSession* new_session();
 import "C"
-import (
-	"unsafe"
-)
+import "unsafe"
 
-type PeerConn struct {
-	Candidate chan candidateMsg
+func init() {
+	C.init()
+}
+
+type Session struct {
+	Candidates chan Candidate
 	// pointer to the session object in C-land
-	session   *C.OwrMediaSession
+	session *C.OwrSession
 }
 
-func NewPeerConn() PeerConn{
+func NewSession() Session {
 	session := C.new_session()
-	pc := PeerConn{
-		Candidate: make(chan candidateMsg),
-		session:   session,
+	s := Session{
+		Candidates: make(chan Candidate),
+		session:    session,
 	}
-	return pc
+	sessions[session] = s.Candidates
+	return s
 }
 
-func (pc PeerConn) GenerateOffer() string {
+// Offer generates a new WebRTC offer.
+func (s Session) Offer() (offer string) {
 	// generate sdp from pc.session
 	return ""
 }
 
-func (pc PeerConn) GenerateAnswer(offer string) string {
+// Answer generates an answer from an offer.
+func (s Session) Answer(offer string) (answer string) {
 	// generate sdp from pc.session
 	return ""
 }
 
-func (pc PeerConn) Answer(sdp string) {
+// Accept receives an offer's answer.
+func (s Session) Accept(answer string) {
 	// C.AddAnswer(pc.Pointer, C.CString(sdp))
 }
 
-func (pc PeerConn) AddCandidate(sdp, mid string, line int) {
+func (pc Session) AddCandidate(sdp, mid string, line int) {
 	// C.owr_session_add_remote_candidate()
 }
 
 // Map of sessions to find the correct channels to use for the candidate callbacks.
-var sessions = make(map[*C.OwrSession]chan candidateMsg)
+var sessions = make(map[*C.OwrSession]chan Candidate)
 
-//export cbCandidate
-func cbCandidate(session *C.OwrSession, candidate *C.OwrCandidate, pc unsafe.Pointer) {
-	ch := sessions[session]
-	ch <- candidateMsg{
-		Sdp:  "",
-		Mid:  "",
-		Line: 0,
+type Candidate struct {
+	Ufrag, Password string
+	CandidateType   int
+	Component       int
+	Foundation      string
+	Priority        int
+	Transport       int
+	Address         string
+	Port            int
+	BaseAddress     string
+	BasePort        int
+}
+
+//export got_candidate_go
+func got_candidate_go(session *C.OwrSession, ufrag, password *C.char, candidateType, component int, foundation *C.char, priority int, transportType int, port, basePort int, address, baseAddress *C.char) {
+	sessions[session] <- Candidate{
+		Ufrag: C.GoString(ufrag), Password: C.GoString(password),
+		CandidateType: candidateType, Component: component,
+		Foundation: C.GoString(foundation), Priority: priority,
+		Transport: transportType,
+		Address:   C.GoString(address), Port: port,
+		BaseAddress: C.GoString(baseAddress), BasePort: basePort,
 	}
 }
 
-// I *think* this is what they mean...
-//export cbCandidatesDone
-func cbCandidatesDone(session *C.OwrSession, pc unsafe.Pointer) {
+//export candidate_gathering_done_go
+func candidate_gathering_done_go(session *C.OwrSession, pc unsafe.Pointer) {
 	ch := sessions[session]
 	close(ch)
+	delete(sessions, session)
 }
+
+const offerTemplate = `v=0
+o=- 6909453319602664734 2 IN IP4 127.0.0.1
+s=-
+t=0 0
+a=msid-semantic: WMS
+`
