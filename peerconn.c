@@ -7,10 +7,13 @@
 
 #include "_cgo_export.h"
 
+// The example code in openwebrtc/tests/test_client.c was very useful for writing this.
+
 OwrTransportAgent *transport_agent;
 
 void init() {
 	owr_init(NULL);
+	// Should this be per-session?
 	transport_agent = owr_transport_agent_new(FALSE);
 	owr_transport_agent_add_helper_server(transport_agent, OWR_HELPER_SERVER_TYPE_STUN,
 		"stun.services.mozilla.com", 3478, NULL, NULL);
@@ -71,4 +74,9 @@ OwrSession* new_session() {
 	owr_transport_agent_add_session(transport_agent, OWR_SESSION(session));
 	
 	return OWR_SESSION(session);
+}
+
+void del_session(OwrSession* session, OwrTransportAgent *transport) {
+	// transport, in theory, owns session and will do the correct thing.
+	g_object_unref(transport);
 }
