@@ -1,4 +1,4 @@
-package webcam
+package webrtc
 
 // #cgo CFLAGS: -I/Library/Frameworks/OpenWebRTC.framework/Headers
 // #cgo LDFLAGS: -framework OpenWebRTC
