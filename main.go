@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-
-	"0f.io/webcam"
 )
 
 var (
@@ -22,7 +20,7 @@ func handleSession(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Couldn't read offer body: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	s := webcam.NewSession()
+	s := webrtc.NewSession()
 	err = s.Remote(offer)
 	if err != nil {
 		log.Printf("Couldn't set remote description: %v", err)
