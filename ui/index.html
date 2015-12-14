@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width, height=device-height, user-scalable=no">
+<style>
+html {
+	height: 100%;
+	width: 100%;
+}
+body {
+	display: flex;
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+	background-color: black;
+	color: grey;
+}
+#cam {
+	width: 100%;
+}
+</style>
+<script src=sdp.js></script>
+<script>
+"use strict";
+
+var peerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || 
+	window.webkitRTCPeerConnection || window.msRTCPeerConnection;
+var sessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription ||
+	window.webkitRTCSessionDescription || window.msRTCSessionDescription;
+navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia ||
+	navigator.webkitGetUserMedia || navigator.msGetUserMedia;
+
+function error(err) {
+	console.log("err:", err)
+}
+
+var pc = new peerConnection(
+	{iceServers: [{urls: "stun:stun.l.google.com:19302"}]},
+	{optional: [{RtpDataChannels: true}]}
+);
+
+var sent = false;
+pc.onicecandidate = function(e) {
+	if (pc.iceGatheringState === "complete" && !sent) {
+		sent = true;
+		var req = new XMLHttpRequest();
+		req.open('POST', '/session');
+		req.onload = function() {
+			if (req.status >= 200 && req.status < 400) {
+				var answer = SDP.generate(JSON.parse(req.responseText));
+				pc.setRemoteDescription(
+					new sessionDescription({type: "answer", sdp: answer}),
+					function(){},
+					error
+				);
+			} else {
+				error("server returned error: " + req.status + " " + req.responseText);
+			}
+		};
+		req.onerror = error;
+		var offer = JSON.stringify(SDP.parse(pc.localDescription.sdp));
+		req.send(offer);
+	}
+};
+
+pc.onaddstream = function(obj) {
+	var vid = document.getElementById("cam");
+	vid.srcObject = obj.stream;
+};
+
+pc.createOffer(
+	function(desc) { pc.setLocalDescription(desc); },
+	error,
+	{offerToReceiveVideo: true}
+);
+</script>
+<title>webcam</title>
+<body>
+<video id=cam autoplay>

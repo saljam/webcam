@@ -13,7 +13,5 @@ The command usage is:
     Usage of webcam:
       -addr string
         	http address to listen on (default ":8003")
-      -data string
-        	data dir for static resources (default "./ui")
 
 For the webrtc package usage refer to the godoc page on [godoc.org](https://godoc.org/0f.io/webcam/webrtc).

@@ -11,6 +11,9 @@ import (
 	"0f.io/webcam/webrtc"
 )
 
+// Embed the UI HTML/JS resources in the Go bindary.
+//go:generate embedder -path ui -package main -name uifs
+
 func handleSession(w http.ResponseWriter, r *http.Request) {
 	offer, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -35,6 +38,6 @@ func main() {
 	addr := flag.String("addr", ":8003", "http address to listen on")
 	flag.Parse()
 	http.HandleFunc("/session", handleSession)
-	http.Handle("/", http.FileServer(uiFilesystem))
+	http.Handle("/", http.FileServer(uifs))
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
