@@ -11,11 +11,6 @@ import (
 	"0f.io/webcam/webrtc"
 )
 
-var (
-	addr     = flag.String("addr", ":8003", "http address to listen on")
-	dataRoot = flag.String("data", "./ui", "data dir")
-)
-
 func handleSession(w http.ResponseWriter, r *http.Request) {
 	offer, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -37,8 +32,9 @@ func handleSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	addr := flag.String("addr", ":8003", "http address to listen on")
 	flag.Parse()
 	http.HandleFunc("/session", handleSession)
-	http.Handle("/", http.FileServer(http.Dir(*dataRoot)))
+	http.Handle("/", http.FileServer(uiFilesystem))
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
