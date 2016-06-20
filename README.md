@@ -2,11 +2,11 @@
 
 A one-way camera stream using the OpenWebRTC native library.
 
-## Building
+### Building
 
 This depends on the [OpenWebRTC](http://www.openwebrtc.org/) library. As long as it's installed on your system (there are [binary releases](https://github.com/EricssonResearch/openwebrtc/releases)) `go get 0f.io/webcam` should just work on OS X. Linux/Windows should follow soon.
 
-## Using
+### Using
 
 The command usage is:
 
